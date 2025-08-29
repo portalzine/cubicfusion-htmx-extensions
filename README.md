@@ -13,5 +13,6 @@ A modified version of the HTMX SSE extension that uses message IDs instead of ev
 **Idea Behind / Philosophy:**  
 
 **cubicFUSION** is my personal playground. I planned to make many of my projects public, but time is limited and running customer projects always a priority.  
+[Alex @ portalZINE NMN - Development meets Creativity][3]
 
 **ENJOY!**
