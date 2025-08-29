@@ -1,10 +1,10 @@
 # HTMX Server-Sent Events (SSE) Extension - ID-Based
 
-A modified version of the HTMX SSE extension that uses message **IDs** instead of event types for routing Server-Sent Events messages. This modification was specifically created for seamless integration with **Mercure**, the real-time communication protocol.
+A modified version of the [HTMX](https://htmx.org) SSE extension that uses message **IDs** instead of event types for routing Server-Sent Events messages. This modification was specifically created for seamless integration with **[Mercure](https://mercure.rocks)**, the real-time communication protocol.
 
 ## Overview
 
-This extension enables HTMX to work with Server-Sent Events (SSE) by filtering messages based on their `id` field rather than the `event` field. This approach is particularly well-suited for **Mercure**, which primarily uses message IDs for routing and doesn't rely on event types.
+This extension enables [HTMX](https://htmx.org) to work with Server-Sent Events (SSE) by filtering messages based on their `id` field rather than the `event` field. This approach is particularly well-suited for **[Mercure](https://mercure.rocks)**, which primarily uses message IDs for routing and doesn't rely on event types.
 
 The modification provides:
 - **Mercure Compatibility**: Direct support for Mercure's ID-based message routing
@@ -13,25 +13,25 @@ The modification provides:
 
 ## Key Differences from Standard HTMX SSE Extension
 
-- **Mercure Integration**: Designed specifically to work with Mercure's ID-based message routing
+- **[Mercure](https://mercure.rocks) Integration**: Designed specifically to work with Mercure's ID-based message routing
 - **ID-Based Routing**: Messages are filtered by their `id` field (`event.lastEventId`) instead of event types
 - **Single Message Listener**: Uses one `'message'` event listener per element instead of multiple event-specific listeners
 - **Better Performance**: Reduced number of event listeners for complex applications with many SSE message types
 
 ## Installation
 
-1. Download the `sse.js` file
-2. Include it in your HTML after the main HTMX library:
+1. Download the `sse-mercure.js` file
+2. Include it in your HTML after the main [HTMX](https://htmx.org) library:
 
 ```html
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-<script src="path/to/sse.js"></script>
+<script src="path/to/sse-mercure.js"></script>
 ```
 
 Or use it as an ES module:
 
 ```javascript
-import './sse.js';
+import './sse-mercure.js';
 ```
 
 ## Usage
@@ -93,6 +93,8 @@ curl -X POST 'https://your-mercure-hub.example.com/.well-known/mercure' \
   -d 'data=<div class="user">John Doe - Online</div>'
 ```
 
+Learn more about [Mercure's publish API](https://mercure.rocks/docs/hub/publish).
+
 ### Example Server Response
 
 ```
@@ -134,6 +136,8 @@ class NotificationController
     }
 }
 ```
+
+See the [Symfony MercureBundle documentation](https://symfony.com/bundles/MercureBundle/current/index.html) for more details.
 
 ### Node.js Example
 
@@ -243,18 +247,18 @@ The extension automatically handles reconnections with exponential backoff:
 
 ## Why This Modification?
 
-This extension was specifically modified to work seamlessly with **Mercure**, a modern real-time communication protocol. Key reasons for the change:
+This extension was specifically modified to work seamlessly with **[Mercure](https://mercure.rocks)**, a modern real-time communication protocol. Key reasons for the change:
 
 ### Mercure's Architecture
-- **Topic-based subscriptions**: Mercure uses topics for subscriptions, not event types
+- **Topic-based subscriptions**: [Mercure](https://mercure.rocks) uses topics for subscriptions, not event types
 - **ID-based message routing**: Messages are identified by unique IDs rather than event names
 - **RESTful approach**: Follows REST principles with URL-based topic subscriptions
 
 ### Benefits for Mercure Users
-- **Direct Integration**: No need for additional mapping between Mercure IDs and HTMX events
-- **Simplified Server Code**: Mercure naturally provides message IDs
+- **Direct Integration**: No need for additional mapping between Mercure IDs and [HTMX](https://htmx.org) events
+- **Simplified Server Code**: [Mercure](https://mercure.rocks) naturally provides message IDs
 - **Better Performance**: Single listener approach reduces overhead
-- **Natural Fit**: Aligns with Mercure's design philosophy
+- **Natural Fit**: Aligns with [Mercure's design philosophy](https://mercure.rocks/docs/getting-started)
 
 ### Example Mercure Integration
 
@@ -269,7 +273,7 @@ This extension was specifically modified to work seamlessly with **Mercure**, a 
 
 ## Migration from Event-Based SSE
 
-If you're migrating from the standard HTMX SSE extension or transitioning to Mercure:
+If you're migrating from the standard [HTMX SSE extension](https://htmx.org/extensions/server-sent-events/) or transitioning to [Mercure](https://mercure.rocks):
 
 ### Before (Event-based)
 ```
@@ -289,7 +293,7 @@ The HTML attributes remain the same, only the server-side message format changes
 
 - All modern browsers that support Server-Sent Events
 - Internet Explorer is not supported (no SSE support)
-- Requires HTMX 1.8.0 or later
+- Requires [HTMX](https://htmx.org) 1.8.0 or later
 
 ## Contributing
 
@@ -301,7 +305,15 @@ The HTML attributes remain the same, only the server-side message format changes
 
 ## License
 
-This extension follows the same license as HTMX.
+This extension follows the same license as [HTMX](https://htmx.org).
+
+## Useful Links
+
+- **[HTMX Official Website](https://htmx.org)** - Main HTMX documentation
+- **[HTMX SSE Extension](https://htmx.org/extensions/server-sent-events/)** - Original event-based SSE extension
+- **[Mercure Official Website](https://mercure.rocks)** - Real-time communication protocol
+- **[Mercure Documentation](https://mercure.rocks/docs/getting-started)** - Getting started with Mercure
+- **[Symfony MercureBundle](https://symfony.com/bundles/MercureBundle/current/index.html)** - Symfony integration
 
 ## Troubleshooting
 
@@ -322,7 +334,7 @@ This extension follows the same license as HTMX.
 
 ### Debug Mode
 
-Enable HTMX logging to see SSE events:
+Enable [HTMX](https://htmx.org) logging to see SSE events:
 
 ```html
 <script>
