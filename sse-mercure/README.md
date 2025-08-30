@@ -1,23 +1,27 @@
-# HTMX Server-Sent Events (SSE) Extension - ID-Based
+# HTMX Server-Sent Events (SSE) Extension - Enhanced
 
-A modified version of the [HTMX](https://htmx.org/) SSE extension that uses message **IDs** instead of event types for routing Server-Sent Events messages. This modification was specifically created for seamless integration with **[Mercure](https://mercure.rocks/)**, the real-time communication protocol.
+A modified version of the [HTMX](https://htmx.org/) SSE extension that supports flexible message routing using message IDs, event types, and data content filtering. This modification was specifically created for seamless integration with **[Mercure](https://mercure.rocks/)**, the real-time communication protocol, while also supporting standard SSE patterns.
 
 ## Overview
 
-This extension enables [HTMX](https://htmx.org/) to work with Server-Sent Events (SSE) by filtering messages based on their `id` field rather than the `event` field. This approach is particularly well-suited for **[Mercure](https://mercure.rocks/)**, which primarily uses message IDs for routing and doesn't rely on event types.
+This extension enables [HTMX](https://htmx.org/) to work with Server-Sent Events (SSE) by providing multiple filtering options for message routing. While originally designed for **[Mercure's](https://mercure.rocks/)** ID-based routing, it now supports event types and content-based filtering as well.
 
 The modification provides:
 
 - **Mercure Compatibility**: Direct support for Mercure's ID-based message routing
-- **Better Performance**: Single message listener instead of multiple event-specific listeners
-- **Flexible Message Handling**: Unique identifier-based message routing
+- **Event Type Support**: Filter messages by SSE event types
+- **Content Filtering**: Filter messages by data content
+- **Wildcard Processing**: Process all messages regardless of type or ID
+- **Better Performance**: Efficient message listener implementation
+- **Flexible Message Handling**: Multiple routing strategies in one extension
 
 ## Key Differences from Standard HTMX SSE Extension
 
 - **[Mercure](https://mercure.rocks/) Integration**: Designed specifically to work with Mercure's ID-based message routing
-- **ID-Based Routing**: Messages are filtered by their `id` field (`event.lastEventId`) instead of event types
-- **Single Message Listener**: Uses one `'message'` event listener per element instead of multiple event-specific listeners
-- **Better Performance**: Reduced number of event listeners for complex applications with many SSE message types
+- **Multiple Filtering Options**: Messages can be filtered by ID, event type, or data content
+- **Wildcard Support**: Process all messages with `*` filter
+- **Enhanced Performance**: Optimized listener registration for configured event types only
+- **Backward Compatibility**: Still supports original ID-based routing
 
 ## Installation
 
@@ -47,6 +51,8 @@ import './sse-mercure.js';
 
 ### Message Swapping with sse-swap
 
+#### ID-Based Filtering (Mercure Style)
+
 ```html
 <div hx-ext="sse" sse-connect="/events">
   <div sse-swap="user-update">
@@ -59,7 +65,53 @@ import './sse-mercure.js';
 </div>
 ```
 
+#### Event Type Filtering
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <div sse-swap="type:notification">
+    <!-- This div will be replaced when 'notification' event type is received -->
+  </div>
+
+  <div sse-swap="type:update,type:ping">
+    <!-- This div will be replaced when 'update' or 'ping' event types are received -->
+  </div>
+</div>
+```
+
+#### Data Content Filtering
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <div sse-swap="data:urgent">
+    <!-- This div will be replaced when message data contains "urgent" -->
+  </div>
+</div>
+```
+
+#### Wildcard Processing
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <div sse-swap="*">
+    <!-- This div will be replaced by any SSE message -->
+  </div>
+</div>
+```
+
+#### Mixed Filtering
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <div sse-swap="id:user-123,type:notification,data:alert">
+    <!-- Multiple filter types can be combined -->
+  </div>
+</div>
+```
+
 ### Triggering Actions with hx-trigger
+
+#### ID-Based Triggers
 
 ```html
 <div hx-ext="sse" sse-connect="/events">
@@ -70,7 +122,31 @@ import './sse-mercure.js';
 </div>
 ```
 
+#### Event Type Triggers
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <button hx-get="/update" hx-trigger="sse:type:ping">
+    <!-- Button will be triggered when 'ping' event type is received -->
+    Update Status
+  </button>
+</div>
+```
+
+#### Wildcard Triggers
+
+```html
+<div hx-ext="sse" sse-connect="/events">
+  <button hx-get="/log" hx-trigger="sse:*">
+    <!-- Button will be triggered by any SSE message -->
+    Log Activity
+  </button>
+</div>
+```
+
 ### Auto-closing Connections
+
+#### ID-Based Closing
 
 ```html
 <div hx-ext="sse" sse-connect="/events" sse-close="stream-end">
@@ -78,9 +154,33 @@ import './sse-mercure.js';
 </div>
 ```
 
+#### Event Type Closing
+
+```html
+<div hx-ext="sse" sse-connect="/events" sse-close="type:disconnect">
+  <!-- Connection will close when 'disconnect' event type is received -->
+</div>
+```
+
+#### Data Content Closing
+
+```html
+<div hx-ext="sse" sse-connect="/events" sse-close="data:session-expired">
+  <!-- Connection will close when message data contains "session-expired" -->
+</div>
+```
+
+#### Wildcard Closing
+
+```html
+<div hx-ext="sse" sse-connect="/events" sse-close="*">
+  <!-- Connection will close on any message -->
+</div>
+```
+
 ## Server-Side Implementation
 
-Your server should send SSE messages with `id` fields. This format is native to **Mercure** and other ID-based SSE systems.
+Your server can send SSE messages using various formats depending on your filtering needs.
 
 ### Mercure Example
 
@@ -96,7 +196,9 @@ curl -X POST 'https://your-mercure-hub.example.com/.well-known/mercure' \
 
 Learn more about [Mercure's publish API](https://mercure.rocks/docs/hub/publish).
 
-### Example Server Response
+### Example Server Response Formats
+
+#### ID-Based Messages (Mercure Style)
 
 ```
 id: user-update
@@ -107,8 +209,32 @@ data: <div class="alert">New message received!</div>
 
 id: refresh-signal
 data: trigger
+```
 
-id: stream-end
+#### Event Type Messages
+
+```
+event: notification
+data: <div class="alert">System notification</div>
+
+event: update
+data: <div class="status">Status updated</div>
+
+event: ping
+data: heartbeat
+```
+
+#### Mixed Messages
+
+```
+id: user-123
+event: notification
+data: <div class="user-alert">User notification</div>
+
+event: update
+data: <div class="system">System update</div>
+
+id: close-signal
 data: Connection closing
 ```
 
@@ -150,13 +276,18 @@ app.get('/events', (req, res) => {
     'Connection': 'keep-alive'
   });
 
-  // Send user update
+  // Send ID-based message
   res.write(`id: user-update\n`);
   res.write(`data: <div class="user">John Doe - Online</div>\n\n`);
 
-  // Send notification
-  res.write(`id: notification\n`);
+  // Send event type message
+  res.write(`event: notification\n`);
   res.write(`data: <div class="alert">New message!</div>\n\n`);
+
+  // Send mixed message
+  res.write(`id: urgent-123\n`);
+  res.write(`event: alert\n`);
+  res.write(`data: <div class="urgent">Critical system alert</div>\n\n`);
 });
 ```
 
@@ -169,8 +300,14 @@ import json
 @app.route('/events')
 def events():
     def generate():
+        # ID-based message
         yield f"id: user-update\ndata: <div class='user'>Jane Doe - Online</div>\n\n"
-        yield f"id: notification\ndata: <div class='alert'>Welcome!</div>\n\n"
+
+        # Event type message
+        yield f"event: notification\ndata: <div class='alert'>Welcome!</div>\n\n"
+
+        # Mixed message
+        yield f"id: system-123\nevent: update\ndata: <div class='system'>System updated</div>\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
 ```
@@ -179,12 +316,22 @@ def events():
 
 ### Attributes
 
-| Attribute            | Description                                                           | Example                     |
-| -------------------- | --------------------------------------------------------------------- | --------------------------- |
-| `sse-connect`        | Establishes SSE connection to specified URL                           | `sse-connect="/events"`     |
-| `sse-swap`           | Comma-separated list of message IDs that will replace element content | `sse-swap="update,refresh"` |
-| `sse-close`          | Message ID that will close the SSE connection                         | `sse-close="stream-end"`    |
-| `hx-trigger="sse:*"` | Triggers HTMX actions when message with specified ID is received      | `hx-trigger="sse:reload"`   |
+| Attribute            | Description                                                 | Example                                   |
+| -------------------- | ----------------------------------------------------------- | ----------------------------------------- |
+| `sse-connect`        | Establishes SSE connection to specified URL                 | `sse-connect="/events"`                   |
+| `sse-swap`           | Comma-separated list of filters for message processing      | `sse-swap="update,type:ping,data:urgent"` |
+| `sse-close`          | Filter condition that will close the SSE connection         | `sse-close="type:disconnect"`             |
+| `hx-trigger="sse:*"` | Triggers HTMX actions when message matches specified filter | `hx-trigger="sse:type:reload"`            |
+
+### Filter Formats
+
+| Filter Format | Description                           | Example                        |
+| ------------- | ------------------------------------- | ------------------------------ |
+| `*`           | Match all messages                    | `sse-swap="*"`                 |
+| `id:VALUE`    | Match by message ID                   | `sse-swap="id:user-123"`       |
+| `type:VALUE`  | Match by event type                   | `sse-swap="type:notification"` |
+| `data:VALUE`  | Match by data content                 | `sse-swap="data:urgent"`       |
+| `VALUE`       | Match by message ID (backward compat) | `sse-swap="user-update"`       |
 
 ### Events
 
@@ -213,6 +360,7 @@ document.addEventListener('htmx:sseOpen', function(evt) {
 
 document.addEventListener('htmx:sseMessage', function(evt) {
   console.log('SSE message received with ID:', evt.detail.lastEventId);
+  console.log('Event type:', evt.detail.type);
 });
 ```
 
@@ -226,12 +374,12 @@ The extension automatically handles reconnections with exponential backoff:
 - Maximum retry interval: 64 seconds
 - Automatic cleanup of orphaned connections
 
-### Multiple Message Types
+### Multiple Filter Types
 
 ```html
 <div hx-ext="sse" sse-connect="/events">
-  <div sse-swap="chat-message,user-joined,user-left">
-    <!-- Responds to multiple message IDs -->
+  <div sse-swap="id:chat-123,type:notification,data:urgent">
+    <!-- Responds to multiple filter criteria -->
   </div>
 </div>
 ```
@@ -240,15 +388,15 @@ The extension automatically handles reconnections with exponential backoff:
 
 ```html
 <div hx-ext="sse" sse-connect="/events">
-  <div sse-swap="header-update">Header content</div>
-  <div sse-swap="body-update">Body content</div>
-  <div sse-swap="footer-update">Footer content</div>
+  <div sse-swap="id:header-update">Header content</div>
+  <div sse-swap="type:body-update">Body content</div>
+  <div sse-swap="data:footer">Footer content</div>
 </div>
 ```
 
 ## Why This Modification?
 
-This extension was specifically modified to work seamlessly with **[Mercure](https://mercure.rocks/)**, a modern real-time communication protocol. Key reasons for the change:
+This extension was specifically modified to work seamlessly with **[Mercure](https://mercure.rocks/)**, a modern real-time communication protocol, while also supporting traditional SSE patterns. Key reasons for the enhancement:
 
 ### Mercure's Architecture
 
@@ -256,43 +404,79 @@ This extension was specifically modified to work seamlessly with **[Mercure](htt
 - **ID-based message routing**: Messages are identified by unique IDs rather than event names
 - **RESTful approach**: Follows REST principles with URL-based topic subscriptions
 
-### Benefits for Mercure Users
+### Benefits for All SSE Users
 
-- **Direct Integration**: No need for additional mapping between Mercure IDs and [HTMX](https://htmx.org/) events
-- **Simplified Server Code**: [Mercure](https://mercure.rocks/) naturally provides message IDs
-- **Better Performance**: Single listener approach reduces overhead
-- **Natural Fit**: Aligns with [Mercure's design philosophy](https://mercure.rocks/docs/getting-started)
+- **Flexible Integration**: Works with Mercure, traditional SSE, and custom implementations
+- **Multiple Routing Options**: Choose between ID, event type, or content-based routing
+- **Simplified Server Code**: Use whatever message format works best for your system
+- **Better Performance**: Optimized listener approach reduces overhead
+- **Universal Compatibility**: Works with any SSE implementation
 
 ### Example Mercure Integration
 
 ```html
 <!-- Connect to Mercure hub -->
 <div hx-ext="sse" sse-connect="https://your-mercure-hub.example.com/.well-known/mercure?topic=user-updates">
-  <div sse-swap="user-123-update,user-456-update">
+  <div sse-swap="id:user-123-update,id:user-456-update">
     <!-- Updates when specific user messages are received -->
+  </div>
+</div>
+```
+
+### Example Traditional SSE Integration
+
+```html
+<!-- Connect to traditional SSE endpoint -->
+<div hx-ext="sse" sse-connect="/events">
+  <div sse-swap="type:notification,type:alert">
+    <!-- Updates when notification or alert events are received -->
   </div>
 </div>
 ```
 
 ## Migration from Event-Based SSE
 
-If you're migrating from the standard [HTMX SSE extension](https://htmx.org/extensions/server-sent-events/) or transitioning to [Mercure](https://mercure.rocks/):
+If you're migrating from the standard [HTMX SSE extension](https://htmx.org/extensions/server-sent-events/):
 
-### Before (Event-based)
+### Before (Event-based only)
+
+```html
+<div sse-swap="user-update">
+```
+
+Server sends:
 
 ```
 event: user-update
 data: <div>User content</div>
 ```
 
-### After (ID-based)
+### After (Flexible filtering)
+
+```html
+<!-- Use event type filtering -->
+<div sse-swap="type:user-update">
+
+<!-- Or use ID-based filtering (Mercure style) -->
+<div sse-swap="id:user-update">
+
+<!-- Or use backward compatible format -->
+<div sse-swap="user-update">
+```
+
+Server can send either format:
+
+```
+event: user-update
+data: <div>User content</div>
+```
+
+Or:
 
 ```
 id: user-update  
 data: <div>User content</div>
 ```
-
-The HTML attributes remain the same, only the server-side message format changes.
 
 ## Browser Compatibility
 
@@ -326,9 +510,17 @@ This extension follows the same license as [HTMX](https://htmx.org/).
 
 **Messages not being received:**
 
-- Check that your server is sending `id:` fields, not `event:` fields
+- Check that your filter format matches your server's message format
+- For ID filtering: ensure server sends `id:` fields
+- For event type filtering: ensure server sends `event:` fields
 - Verify the SSE endpoint is accessible
 - Check browser developer tools for connection errors
+
+**Event type filtering not working:**
+
+- Ensure your server sends proper `event:` fields
+- Use `type:` prefix in your filter: `sse-swap="type:notification"`
+- Check that the event type name matches exactly
 
 **Multiple connections:**
 

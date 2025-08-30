@@ -1,7 +1,7 @@
 /*
-SSE-MERCURE
-A modified version of the HTMX SSE extension that uses message IDs instead of event types for routing Server-Sent Events messages. 
-This modification was specifically created for seamless integration with Mercure, the real-time communication protocol.
+SSE-MERCURE (Unrestricted Version)
+A modified version of the HTMX SSE extension that removes event type restrictions and supports flexible message routing.
+Supports routing by message IDs, event types, or processing all messages.
 */
 
 (function() {
@@ -98,9 +98,8 @@ This modification was specifically created for seamless integration with Mercure
       var source = internalData.sseEventSource
 
       var sseSwapAttr = api.getAttributeValue(elt, 'sse-swap')
-      var sseEventIds = sseSwapAttr.split(',')
-
-      // Create a single message listener that filters by ID
+      
+      // Create a single message listener that handles flexible message routing
       const messageListener = function(event) {
         // If the source is missing then close SSE
         if (maybeCloseSSESource(sourceElement)) {
@@ -113,15 +112,49 @@ This modification was specifically created for seamless integration with Mercure
           return
         }
 
-        // Check if this message's ID matches any of the configured IDs
-        var messageId = event.lastEventId || ''
         var shouldProcess = false
-        
-        for (var i = 0; i < sseEventIds.length; i++) {
-          var targetId = sseEventIds[i].trim()
-          if (messageId === targetId) {
-            shouldProcess = true
-            break
+
+        // Check if we should process all messages (wildcard or empty)
+        if (sseSwapAttr === '*' || sseSwapAttr.trim() === '') {
+          shouldProcess = true
+        } else {
+          // Parse the swap attribute for specific filters
+          var sseEventFilters = sseSwapAttr.split(',')
+          var messageId = event.lastEventId || ''
+          var eventType = event.type || 'message'
+
+          for (var i = 0; i < sseEventFilters.length; i++) {
+            var filter = sseEventFilters[i].trim()
+            
+            // Check for ID-based routing (id:value)
+            if (filter.startsWith('id:')) {
+              var targetId = filter.substring(3)
+              if (messageId === targetId) {
+                shouldProcess = true
+                break
+              }
+            }
+            // Check for event type routing (type:value)
+            else if (filter.startsWith('type:')) {
+              var targetType = filter.substring(5)
+              if (eventType === targetType) {
+                shouldProcess = true
+                break
+              }
+            }
+            // Check for data content matching (data:value)
+            else if (filter.startsWith('data:')) {
+              var targetData = filter.substring(5)
+              if (event.data && event.data.includes(targetData)) {
+                shouldProcess = true
+                break
+              }
+            }
+            // Backward compatibility: treat bare values as message IDs
+            else if (messageId === filter) {
+              shouldProcess = true
+              break
+            }
           }
         }
 
@@ -140,6 +173,9 @@ This modification was specifically created for seamless integration with Mercure
       // Register the message listener
       api.getInternalData(elt).sseEventListener = messageListener
       source.addEventListener('message', messageListener)
+
+      // Also listen for all event types, not just 'message'
+      registerEventTypeListeners(source, messageListener, elt)
     }
 
     // Add message handlers for every `hx-trigger="sse:*"` attribute
@@ -156,19 +192,19 @@ This modification was specifically created for seamless integration with Mercure
       var source = internalData.sseEventSource
 
       var triggerSpecs = api.getTriggerSpecs(elt)
-      var sseTriggersIds = []
+      var sseTriggersFilters = []
       
-      // Collect all SSE trigger IDs
+      // Collect all SSE trigger filters
       triggerSpecs.forEach(function(ts) {
         if (ts.trigger.slice(0, 4) === 'sse:') {
-          sseTriggersIds.push({
-            id: ts.trigger.slice(4),
+          sseTriggersFilters.push({
+            filter: ts.trigger.slice(4),
             triggerSpec: ts
           })
         }
       })
 
-      if (sseTriggersIds.length > 0) {
+      if (sseTriggersFilters.length > 0) {
         // Create a single message listener for all SSE triggers
         var listener = function (event) {
           if (maybeCloseSSESource(sourceElement)) {
@@ -179,11 +215,38 @@ This modification was specifically created for seamless integration with Mercure
             return
           }
 
-          // Check if this message's ID matches any of the SSE trigger IDs
           var messageId = event.lastEventId || ''
+          var eventType = event.type || 'message'
           
-          sseTriggersIds.forEach(function(triggerInfo) {
-            if (messageId === triggerInfo.id) {
+          sseTriggersFilters.forEach(function(triggerInfo) {
+            var filter = triggerInfo.filter
+            var shouldTrigger = false
+
+            // Handle wildcard or empty filter
+            if (filter === '*' || filter === '') {
+              shouldTrigger = true
+            }
+            // Handle ID-based filtering
+            else if (filter.startsWith('id:')) {
+              var targetId = filter.substring(3)
+              shouldTrigger = (messageId === targetId)
+            }
+            // Handle event type filtering
+            else if (filter.startsWith('type:')) {
+              var targetType = filter.substring(5)
+              shouldTrigger = (eventType === targetType)
+            }
+            // Handle data content filtering
+            else if (filter.startsWith('data:')) {
+              var targetData = filter.substring(5)
+              shouldTrigger = (event.data && event.data.includes(targetData))
+            }
+            // Backward compatibility: treat bare values as message IDs
+            else {
+              shouldTrigger = (messageId === filter)
+            }
+
+            if (shouldTrigger) {
               // Trigger events to be handled by the rest of htmx
               htmx.trigger(elt, triggerInfo.triggerSpec.trigger, event)
               htmx.trigger(elt, 'htmx:sseMessage', event)
@@ -194,8 +257,88 @@ This modification was specifically created for seamless integration with Mercure
         // Register the new listener
         api.getInternalData(elt).sseEventListener = listener
         source.addEventListener('message', listener)
+
+        // Also listen for all event types
+        registerEventTypeListeners(source, listener, elt)
       }
     }
+  }
+
+  /**
+   * Register event listeners for common SSE event types
+   * @param {EventSource} source 
+   * @param {Function} listener 
+   * @param {HTMLElement} elt 
+   */
+  function registerEventTypeListeners(source, listener, elt) {
+    // Get all configured event types from the element's attributes
+    var configuredEventTypes = getConfiguredEventTypes(elt)
+    
+    // Add common SSE event types
+    var commonEventTypes = ['open', 'error', 'ping', 'update', 'notification', 'heartbeat', 'close']
+    
+    // Combine and deduplicate
+    var allEventTypes = Array.from(new Set(configuredEventTypes.concat(commonEventTypes)))
+    
+    allEventTypes.forEach(function(eventType) {
+      if (eventType !== 'message') { // 'message' is handled separately
+        source.addEventListener(eventType, function(event) {
+          // Create a modified event object with the correct type
+          var modifiedEvent = {
+            data: event.data || '',
+            lastEventId: event.lastEventId || '',
+            type: eventType,
+            origin: event.origin || '',
+            source: event.source || null,
+            target: event.target || null,
+            timeStamp: event.timeStamp || Date.now()
+          }
+          listener(modifiedEvent)
+        })
+      }
+    })
+  }
+
+  /**
+   * Extract event types mentioned in element's SSE attributes
+   * @param {HTMLElement} elt 
+   * @returns {Array<string>}
+   */
+  function getConfiguredEventTypes(elt) {
+    var eventTypes = []
+    
+    // Check sse-swap attribute
+    var sseSwapAttr = api.getAttributeValue(elt, 'sse-swap')
+    if (sseSwapAttr) {
+      var filters = sseSwapAttr.split(',')
+      filters.forEach(function(filter) {
+        filter = filter.trim()
+        if (filter.startsWith('type:')) {
+          eventTypes.push(filter.substring(5))
+        }
+      })
+    }
+    
+    // Check hx-trigger attribute for sse: triggers
+    var triggerSpecs = api.getTriggerSpecs(elt)
+    if (triggerSpecs) {
+      triggerSpecs.forEach(function(ts) {
+        if (ts.trigger.slice(0, 4) === 'sse:') {
+          var filter = ts.trigger.slice(4)
+          if (filter.startsWith('type:')) {
+            eventTypes.push(filter.substring(5))
+          }
+        }
+      })
+    }
+    
+    // Check sse-close attribute
+    var closeAttr = api.getAttributeValue(elt, 'sse-close')
+    if (closeAttr && closeAttr.startsWith('type:')) {
+      eventTypes.push(closeAttr.substring(5))
+    }
+    
+    return eventTypes
   }
 
   /**
@@ -264,10 +407,30 @@ This modification was specifically created for seamless integration with Mercure
 
     var closeAttribute = api.getAttributeValue(elt, "sse-close");
     if (closeAttribute) {
-      // close eventsource when message with this ID is received
+      // close eventsource when condition is met
       const closeListener = function(event) {
+        var shouldClose = false
         var messageId = event.lastEventId || ''
-        if (messageId === closeAttribute) {
+        var eventType = event.type || 'message'
+
+        // Handle different close conditions
+        if (closeAttribute === '*') {
+          shouldClose = true // Close on any message
+        } else if (closeAttribute.startsWith('id:')) {
+          var targetId = closeAttribute.substring(3)
+          shouldClose = (messageId === targetId)
+        } else if (closeAttribute.startsWith('type:')) {
+          var targetType = closeAttribute.substring(5)
+          shouldClose = (eventType === targetType)
+        } else if (closeAttribute.startsWith('data:')) {
+          var targetData = closeAttribute.substring(5)
+          shouldClose = (event.data && event.data.includes(targetData))
+        } else {
+          // Backward compatibility: treat as message ID
+          shouldClose = (messageId === closeAttribute)
+        }
+
+        if (shouldClose) {
           api.triggerEvent(elt, 'htmx:sseClose', {
             source,
             type: 'message',
@@ -275,7 +438,10 @@ This modification was specifically created for seamless integration with Mercure
           source.close()
         }
       }
-      source.addEventListener('message', closeListener);
+      
+      source.addEventListener('message', closeListener)
+      // Also listen for other event types for close conditions
+      registerEventTypeListeners(source, closeListener, elt)
     }
   }
 
