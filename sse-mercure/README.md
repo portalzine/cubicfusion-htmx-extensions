@@ -11,7 +11,6 @@ The modification provides:
 - **Mercure Compatibility**: Direct support for Mercure's ID-based message routing
 - **Better Performance**: Single message listener instead of multiple event-specific listeners
 - **Flexible Message Handling**: Unique identifier-based message routing
-- **Type-Based Data Transformation**: Process messages differently based on their type field
 
 ## Key Differences from Standard HTMX SSE Extension
 
@@ -19,7 +18,6 @@ The modification provides:
 - **ID-Based Routing**: Messages are filtered by their `id` field (`event.lastEventId`) instead of event types
 - **Single Message Listener**: Uses one `'message'` event listener per element instead of multiple event-specific listeners
 - **Better Performance**: Reduced number of event listeners for complex applications with many SSE message types
-- **Type-Based Processing**: Transform message content based on Mercure's `type` field before swapping
 
 ## Installation
 
@@ -80,48 +78,19 @@ import './sse-mercure.js';
 </div>
 ```
 
-### Type-Based Data Transformation
-
-The extension supports transforming message data based on Mercure's `type` field before it's swapped into the DOM. This allows you to process different types of messages differently.
-
-```javascript
-// Override the default transformation function
-htmx.transformSSEData = function(data, type, element) {
-    if (type === 'user-update') {
-        // Wrap user updates with special styling
-        return '<div class="user-update animate-pulse">' + data + '</div>';
-    } else if (type === 'notification') {
-        // Add notification styling and icons
-        return '<div class="notification alert-info"><i class="icon-bell"></i>' + data + '</div>';
-    } else if (type === 'error') {
-        // Style error messages differently
-        return '<div class="alert alert-danger">' + data + '</div>';
-    }
-    // Return unchanged for unknown types or no type
-    return data;
-};
-```
-
-This transformation happens automatically when:
-
-- The SSE message includes a `type` field (as per Mercure specification)
-- The `type` field is not empty
-- The transformation occurs before HTMX swaps the content
-
 ## Server-Side Implementation
 
 Your server should send SSE messages with `id` fields. This format is native to **Mercure** and other ID-based SSE systems.
 
-### Mercure Example with Type
+### Mercure Example
 
 ```bash
-# Publish to Mercure hub with type
+# Publish to Mercure hub
 curl -X POST 'https://your-mercure-hub.example.com/.well-known/mercure' \
   -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'topic=user-updates' \
   -d 'id=user-123-update' \
-  -d 'type=user-update' \
   -d 'data=<div class="user">John Doe - Online</div>'
 ```
 
@@ -131,16 +100,10 @@ Learn more about [Mercure's publish API](https://mercure.rocks/docs/hub/publish)
 
 ```
 id: user-update
-type: user-update
 data: <div class="user">John Doe - Online</div>
 
 id: notification
-type: notification
 data: <div class="alert">New message received!</div>
-
-id: error-123
-type: error
-data: Something went wrong!
 
 id: refresh-signal
 data: trigger
@@ -165,8 +128,7 @@ class NotificationController
             'user-updates',
             '<div class="user">Jane Doe - Online</div>',
             false,
-            'user-123-update', // This becomes the message ID
-            'user-update'      // This becomes the message type
+            'user-123-update' // This becomes the message ID
         );
 
         $hub->publish($update);
@@ -188,14 +150,12 @@ app.get('/events', (req, res) => {
     'Connection': 'keep-alive'
   });
 
-  // Send user update with type
+  // Send user update
   res.write(`id: user-update\n`);
-  res.write(`type: user-update\n`);
   res.write(`data: <div class="user">John Doe - Online</div>\n\n`);
 
-  // Send notification with type
+  // Send notification
   res.write(`id: notification\n`);
-  res.write(`type: notification\n`);
   res.write(`data: <div class="alert">New message!</div>\n\n`);
 });
 ```
@@ -209,8 +169,8 @@ import json
 @app.route('/events')
 def events():
     def generate():
-        yield f"id: user-update\ntype: user-update\ndata: <div class='user'>Jane Doe - Online</div>\n\n"
-        yield f"id: notification\ntype: notification\ndata: <div class='alert'>Welcome!</div>\n\n"
+        yield f"id: user-update\ndata: <div class='user'>Jane Doe - Online</div>\n\n"
+        yield f"id: notification\ndata: <div class='alert'>Welcome!</div>\n\n"
 
     return Response(generate(), mimetype='text/event-stream')
 ```
@@ -244,12 +204,6 @@ The extension triggers several custom events:
 // Create custom EventSource (can be overridden)
 htmx.createEventSource = function(url) {
   return new EventSource(url, { withCredentials: true });
-};
-
-// Transform SSE data based on type (can be overridden)
-htmx.transformSSEData = function(data, type, element) {
-  // Custom transformation logic here
-  return data;
 };
 
 // Listen to SSE events
@@ -301,14 +255,12 @@ This extension was specifically modified to work seamlessly with **[Mercure](htt
 - **Topic-based subscriptions**: [Mercure](https://mercure.rocks/) uses topics for subscriptions, not event types
 - **ID-based message routing**: Messages are identified by unique IDs rather than event names
 - **RESTful approach**: Follows REST principles with URL-based topic subscriptions
-- **Type support**: [Mercure specification](https://mercure.rocks/spec#publication) includes optional `type` field for message classification
 
 ### Benefits for Mercure Users
 
 - **Direct Integration**: No need for additional mapping between Mercure IDs and [HTMX](https://htmx.org/) events
-- **Simplified Server Code**: [Mercure](https://mercure.rocks/) naturally provides message IDs and types
+- **Simplified Server Code**: [Mercure](https://mercure.rocks/) naturally provides message IDs
 - **Better Performance**: Single listener approach reduces overhead
-- **Type-Aware Processing**: Leverage Mercure's type field for intelligent content transformation
 - **Natural Fit**: Aligns with [Mercure's design philosophy](https://mercure.rocks/docs/getting-started)
 
 ### Example Mercure Integration
@@ -318,7 +270,6 @@ This extension was specifically modified to work seamlessly with **[Mercure](htt
 <div hx-ext="sse" sse-connect="https://your-mercure-hub.example.com/.well-known/mercure?topic=user-updates">
   <div sse-swap="user-123-update,user-456-update">
     <!-- Updates when specific user messages are received -->
-    <!-- Content will be transformed based on message type -->
   </div>
 </div>
 ```
@@ -334,11 +285,10 @@ event: user-update
 data: <div>User content</div>
 ```
 
-### After (ID-based with optional type)
+### After (ID-based)
 
 ```
-id: user-update
-type: user-update
+id: user-update  
 data: <div>User content</div>
 ```
 
@@ -368,7 +318,6 @@ This extension follows the same license as [HTMX](https://htmx.org/).
 - **[HTMX SSE Extension](https://htmx.org/extensions/server-sent-events/)** - Original event-based SSE extension
 - **[Mercure Official Website](https://mercure.rocks/)** - Real-time communication protocol
 - **[Mercure Documentation](https://mercure.rocks/docs/getting-started)** - Getting started with Mercure
-- **[Mercure Specification](https://mercure.rocks/spec#publication)** - Technical specification including type field
 - **[Symfony MercureBundle](https://symfony.com/bundles/MercureBundle/current/index.html)** - Symfony integration
 
 ## Troubleshooting
@@ -380,12 +329,6 @@ This extension follows the same license as [HTMX](https://htmx.org/).
 - Check that your server is sending `id:` fields, not `event:` fields
 - Verify the SSE endpoint is accessible
 - Check browser developer tools for connection errors
-
-**Type transformation not working:**
-
-- Ensure your server is sending the `type:` field in SSE messages
-- Verify your `htmx.transformSSEData` function is correctly defined
-- Check that the type field is not empty or whitespace-only
 
 **Multiple connections:**
 

@@ -1,8 +1,7 @@
 /*
-Server Sent Events Extension
-============================
-This extension adds support for Server Sent Events to htmx.  See /www/extensions/sse.md for usage instructions.
-
+SSE-MERCURE
+A modified version of the HTMX SSE extension that uses message IDs instead of event types for routing Server-Sent Events messages. 
+This modification was specifically created for seamless integration with Mercure, the real-time communication protocol.
 */
 
 (function() {
@@ -24,11 +23,6 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
       // set a function in the public API for creating new EventSource objects
       if (htmx.createEventSource == undefined) {
         htmx.createEventSource = createEventSource
-      }
-
-      // set a function in the public API for transforming data based on type
-      if (htmx.transformSSEData == undefined) {
-        htmx.transformSSEData = transformSSEData
       }
     },
 
@@ -80,20 +74,6 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
    */
   function createEventSource(url) {
     return new EventSource(url, { withCredentials: true })
-  }
-
-  /**
-   * transformSSEData is the default method for transforming SSE data based on type.
-   * it is hoisted into htmx.transformSSEData to be overridden by the user, if needed.
-   *
-   * @param {string} data - The original data from the SSE message
-   * @param {string} type - The type from the SSE message (Mercure type field)
-   * @param {HTMLElement} elt - The target element
-   * @returns {string} - The transformed data
-   */
-  function transformSSEData(data, type, elt) {
-    // Default behavior: return data unchanged
-    return data
   }
 
   /**
@@ -153,7 +133,7 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
         if (!api.triggerEvent(elt, 'htmx:sseBeforeMessage', event)) {
           return
         }
-        swap(elt, event.data, event.type)
+        swap(elt, event.data)
         api.triggerEvent(elt, 'htmx:sseMessage', event)
       }
 
@@ -325,14 +305,8 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
   /**
    * @param {HTMLElement} elt
    * @param {string} content
-   * @param {string} [type] - Optional type from SSE message (Mercure type field)
    */
-  function swap(elt, content, type) {
-    // Transform data based on type if type is provided and not empty
-    if (type && type.trim() !== '') {
-      content = htmx.transformSSEData(content, type, elt)
-    }
-
+  function swap(elt, content) {
     api.withExtensions(elt, function(extension) {
       content = extension.transformResponse(content, elt)
     })
